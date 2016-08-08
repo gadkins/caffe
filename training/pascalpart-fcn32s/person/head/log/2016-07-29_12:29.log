@@ -1,0 +1,4 @@
+Traceback (most recent call last):
+  File "solve.py", line 69, in <module>
+    caffe.set_device(int(device))
+ValueError: invalid literal for int() with base 10: ''
