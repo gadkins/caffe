@@ -7,7 +7,12 @@ from datetime import datetime
 from PIL import Image
 
 def fast_hist(a, b, n):
-    k = (a >= 0) & (a < n)
+    # Select only positive samples less than # of classes (i.e. values 0 - 10 for 11-class fcn)
+    k = (a >= 0) & (a < n) # a boolean index array 
+    # Build an nxn confusion matrix where diagonal corresponds to correctly predicted class
+    # Confusion matrix is indexed sequentially as [0,1,2,...n**2], thus every nth index corresponds
+    # to the end of a row (hence the n *). The a[k] term is the gt while the b[k] value gives you 
+    # a error (i.e. actual (y-axis) vs predicted (x-axis))
     return np.bincount(n * a[k].astype(int) + b[k], minlength=n**2).reshape(n, n)
 
 def compute_hist(net, save_dir, dataset, layer='score', gt='label'):
@@ -15,7 +20,7 @@ def compute_hist(net, save_dir, dataset, layer='score', gt='label'):
     n_cl = net.blobs[layer].channels
     if save_dir:    
     	os.mkdir(save_dir)
-    hist = np.zeros((n_cl, n_cl))
+    hist = np.zeros((n_cl, n_cl))    # aka, confusion matrix
     loss = 0
     for idx in dataset:
         net.forward()
@@ -41,11 +46,15 @@ def do_seg_tests(net, iter, save_format, dataset, layer='score', gt='label'):
         save_format = save_format.format(iter)
     hist, loss = compute_hist(net, save_format, dataset, layer, gt)
     # mean loss
-    print '>>>', datetime.now(), 'Iteration', iter, 'loss', loss
+    print '>>>', datetime.now(), 'Iteration', iter, 'mean loss', loss
     # overall accuracy
+    # hist.sum() should equal image height x width (i.e. 187,500 for a 375x500 pixel image)
+    # as long as no gt are negative or outside the range of classes (see fast_hist)
     acc = np.diag(hist).sum() / hist.sum()
     print '>>>', datetime.now(), 'Iteration', iter, 'overall accuracy', acc
     # per-class accuracy
+    # hist.sum(1) means to sum the 2nd dimension (i.e. columns, i.e. sum all cols of first row, sum all col 
+    # of second row, etc.)
     acc = np.diag(hist) / hist.sum(1)
     print '>>>', datetime.now(), 'Iteration', iter, 'mean accuracy', np.nanmean(acc)
     # per-class IU

@@ -1,5 +1,9 @@
 ## General
 
+# Log files
+*.log
+*.log.*
+
 # Compiled Object files
 *.slo
 *.lo
@@ -26,8 +30,9 @@
 # Compiled MATLAB
 *.mex*
 
-# IPython notebook checkpoints
+# IPython notebook
 .ipynb_checkpoints
+tester.ipynb
 
 # Editor temporaries
 *.swp
@@ -67,6 +72,14 @@ models/*
 *.binaryproto
 *leveldb
 *lmdb
+*.png
+*.jpg
+
+# Training files
+*train.prototxt
+*val.prototxt
+log/
+loss/
 
 # build, distribute, and bins (+ python proto bindings)
 build

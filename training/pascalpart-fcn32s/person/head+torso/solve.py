@@ -24,7 +24,7 @@ if len(sys.argv) > 2:
 		iteration = int(sys.argv[3])
 
 timestr = time.strftime("%Y%m%d-%H%M%S")
-log = 'training_log'
+log = 'log'
 class Logger(object):
     def __init__(self):
         self.terminal = sys.stdout
@@ -74,7 +74,7 @@ if is_resume:
     solver.net.copy_from('{}/train_iter_{}.caffemodel'.format(snapshot, iteration))
     solver.restore('{}/train_iter_{}.solverstate'.format(snapshot, iteration))
 else:
-    solver.net.copy_from('{}/pascalpart-fcn32s/person/{}/vgg16fc.caffemodel'.format(models, part))
+    solver.net.copy_from('../vgg_no_bilinear_vgg16fc.caffemodel'.format(models, part))
 
 # surgeries
 interp_layers = [k for k in solver.net.params.keys() if 'up' in k]

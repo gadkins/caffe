@@ -74,11 +74,11 @@ if is_resume:
     solver.net.copy_from('{}/train_iter_{}.caffemodel'.format(snapshot, iteration))
     solver.restore('{}/train_iter_{}.solverstate'.format(snapshot, iteration))
 else:
-    solver.net.copy_from('../vgg16fc.caffemodel')
+    solver.net.copy_from('../vgg_no_bilinear_vgg16fc.caffemodel')
 
 # surgeries
-#interp_layers = [k for k in solver.net.params.keys() if 'up' in k]
-#surgery.interp(solver.net, interp_layers)
+interp_layers = [k for k in solver.net.params.keys() if 'up' in k]
+surgery.interp(solver.net, interp_layers)
 
 # scoring
 val = np.loadtxt('{}/data/pascal/VOC/VOC2010/ImageSets/person/{}_val.txt'.format(caffe_root, part), dtype=str)
