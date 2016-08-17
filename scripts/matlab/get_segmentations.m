@@ -42,13 +42,15 @@ close all
 % Input
 % N.B. size of Annotations_Part and JPEGImages dirs are not equal.
 % Only a subset (10,103) of JPEGImages are annotated by pascal parts
-anno_dir = '/home/cv/hdl/caffe/data/pascal/pascal-part/Annotations_Part/';
+dataRoot = '/home/cv/hdl/caffe/data';
+pascal = fullfile(dataRoot, '/pascal');
+anno_dir = fullfile(pascal, '/pascal-part/Annotations_Part/');
 anno_files = dir(strcat(anno_dir,'*.mat'));
-img_path = '/home/cv/hdl/caffe/data/pascal/VOC/VOC2010/JPEGImages';
+img_path = fullfile(pascal, '/VOC/VOC2010/JPEGImages');
 cmap = VOClabelcolormap();
 
 % Output
-outputRoot = '../';
+outputRoot = fullfile(pascal, '/pascal-part');
 outputImDir = fullfile(outputRoot,'images',className,partName);
 outputSegDir = fullfile(outputRoot,'segmentations',className,partName);
 
@@ -83,6 +85,10 @@ for ii = 1:numel(anno_files)
         
         % reduce part_mask size to size of instance bounding box
         [croppedRGB,~,croppedPartMask] = cropMask(img, inst_mask, part_mask);
+        % assert only as many pids present as desired
+        assert(numel([0;desired_pid]) == numel(unique(croppedPartMask)))
+        % assert pids match desired
+        assert(all([0;desired_pid] == unique(croppedPartMask)))
         
         segfile = fullfile(outputSegDir,imname);
         [~,basename,ext] = fileparts(segfile);

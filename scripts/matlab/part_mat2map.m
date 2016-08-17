@@ -8,7 +8,7 @@ part_mask = zeros(size(img,1), size(img,2), 'uint8');
 class_ind = obj.class_ind;
 silh = obj.mask;            % the silhouette mask of the object
 assert(size(silh,1) == size(img,1) && size(silh,2) == size(img,2));
-inst_mask(silh) = oo; 
+inst_mask(silh) = desired_pid; 
 cls_mask(silh) = class_ind;
     
 for pp = 1:numel(obj.parts)
