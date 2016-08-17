@@ -1,0 +1,21 @@
+train_net: "/home/cv/hdl/caffe/training/pascalpart-fcn16s/person/head+torso/train.prototxt"
+test_net: "/home/cv/hdl/caffe/training/pascalpart-fcn16s/person/head+torso/val.prototxt"
+# test_iter = validation set size / validation batch size
+test_iter: 3798
+# make test net, but don't invoke it from the solver itself (see solve.py & score.py)
+test_interval: 999999999
+display: 20
+average_loss: 20
+lr_policy: "fixed"
+# lr for unnormalized softmax
+base_lr: 1e-10
+# high momentum
+momentum: 0.99
+# no gradient accumulation
+iter_size: 1
+# max_iter = #epochs * (training set size / training batch size)
+max_iter: 300000
+weight_decay: 0.0005
+snapshot: 4000
+snapshot_prefix: "/home/cv/hdl/caffe/training/pascalpart-fcn16s/person/head+torso/snapshot/train"
+test_initialization: false
