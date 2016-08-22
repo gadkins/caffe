@@ -8,7 +8,7 @@ part_mask = zeros(size(img,1), size(img,2), 'uint8');
 class_ind = obj.class_ind;
 silh = obj.mask;            % the silhouette mask of the object
 assert(size(silh,1) == size(img,1) && size(silh,2) == size(img,2));
-inst_mask(silh) = desired_pid; 
+inst_mask(silh) = class_ind; 
 cls_mask(silh) = class_ind;
     
 for pp = 1:numel(obj.parts)
@@ -16,8 +16,12 @@ for pp = 1:numel(obj.parts)
     assert(isKey(pimap{class_ind}, part_name));     % must define part index for every part
     assert(all(silh(obj.parts(pp).mask)));          % all part region is a subregion of the object
     pid = pimap{class_ind}(part_name);
-    if (pid == desired_pid)
+    if (desired_pid == 0)
         part_mask(obj.parts(pp).mask) = pid;
+    elseif (desired_pid ~= 0 && pid == desired_pid)
+        part_mask(obj.parts(pp).mask) = pid;
+    else
+        continue
     end
 end
 
