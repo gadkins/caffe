@@ -36,10 +36,10 @@ def compute_hist(net, seg_dir, conf_dir, dataset, layer='score', gt='label'):
         loss += net.blobs['loss'].data.flat[0]
     return hist, loss / len(dataset)
 
-def seg_tests(solver, save_format, dataset, layer='score', gt='label'):
+def seg_tests(solver, save_format, conf_format, dataset, layer='score', gt='label'):
     print '>>>', datetime.now(), 'Begin seg tests'
     solver.test_nets[0].share_with(solver.net)
-    do_seg_tests(solver.test_nets[0], solver.iter, save_format, dataset, layer, gt)
+    do_seg_tests(solver.test_nets[0], solver.iter, save_format, conf_format, dataset, layer, gt)
 
 def do_seg_tests(net, iter, save_format, conf_format, dataset, layer='score', gt='label'):
     n_cl = net.blobs[layer].channels
