@@ -22,7 +22,9 @@
 % train         -   19
 % tvmonitor     -   20
 
-addpath(genpath('/home/cv/hdl/caffe/data/pascal'));
+dataRoot = '/home/cv/hdl/caffe/data';
+pascal = fullfile(dataRoot, '/pascal');
+addpath(genpath(pascal));
 
 classKeys = {'aeroplane','bicycle','bird','boat','bottle','bus','car',...
     'cat','chair','cow','diningtable','dog','horse','motorbike','person',...
@@ -35,15 +37,14 @@ pimap = part2ind();     % part index mapping
 % See part2ind() for part names and pids
 className = 'person';
 classID = classMap(className);
-partName = 'head+torso';
-desired_pid = 3;
+partName = 'all_parts';
+desired_pid = 0;        % Set to 0 use all parts
 
 close all
 % Input
 % N.B. size of Annotations_Part and JPEGImages dirs are not equal.
 % Only a subset (10,103) of JPEGImages are annotated by pascal parts
-dataRoot = '/home/cv/hdl/caffe/data';
-pascal = fullfile(dataRoot, '/pascal');
+
 anno_dir = fullfile(pascal, '/pascal-part/Annotations_Part/');
 anno_files = dir(strcat(anno_dir,'*.mat'));
 img_path = fullfile(pascal, '/VOC/VOC2010/JPEGImages');
@@ -74,27 +75,30 @@ for ii = 1:numel(anno_files)
         continue;
     end
     for oo = 1:size(objects,2)
-       [~,inst_mask,part_mask] = part_mat2map(objects{oo}, img, pimap, desired_pid);
+       [~,inst_mask,part_mask,~] = part_mat2map(objects{oo}, img, pimap, desired_pid);
         if (sum(part_mask(:)) == 0)
            continue;
         end
         % assert only as many pids present as desired
-        assert(numel([0;desired_pid]) == numel(unique(part_mask)))
-        % assert pids match desired
-        assert(all([0;desired_pid] == unique(part_mask)))
+%         assert(numel([0;desired_pid]) == numel(unique(part_mask)))
+%         % assert pids match desired
+%         assert(all([0;desired_pid] == unique(part_mask)))
         
         % reduce part_mask size to size of instance bounding box
         [croppedRGB,~,croppedPartMask] = cropMask(img, inst_mask, part_mask);
         % assert only as many pids present as desired
-        assert(numel([0;desired_pid]) == numel(unique(croppedPartMask)))
-        % assert pids match desired
-        assert(all([0;desired_pid] == unique(croppedPartMask)))
+%         assert(numel([0;desired_pid]) == numel(unique(croppedPartMask)))
+%         % assert pids match desired
+%         assert(all([0;desired_pid] == unique(croppedPartMask)))
         
         segfile = fullfile(outputSegDir,imname);
-        [~,basename,ext] = fileparts(segfile);
-        multiInstanceName = strcat(basename,'_',num2str(oo),ext);
-        segfile = fullfile(outputSegDir,multiInstanceName);
-        imfile = fullfile(outputImDir,multiInstanceName);
+        [~,basename,~] = fileparts(segfile);
+        % Segmentation image MUST BE SAVED AS PNG or else imwrite will
+        % corrupt with spurious values if saved as jpeg
+        multiInstanceNameSeg = strcat(basename,'_',num2str(oo),'.png');
+        multiInstanceNameIm = strcat(basename,'_',num2str(oo),'.jpg');
+        segfile = fullfile(outputSegDir,multiInstanceNameSeg);
+        imfile = fullfile(outputImDir,multiInstanceNameIm);
 %         imwrite(img,imfile);
         imwrite(croppedRGB, imfile);
 %         imwrite(part_mask,segfile);
