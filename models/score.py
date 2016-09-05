@@ -11,13 +11,15 @@ def fast_hist(a, b, n):
     k = (a >= 0) & (a < n)
     return np.bincount(n * a[k].astype(int) + b[k], minlength=n**2).reshape(n, n)
 
-def compute_hist(net, seg_dir, conf_dir, dataset, layer='score', gt='label'):
+def compute_hist(net, seg_dir, conf_dir, sm_dir, dataset, layer='score', gt='label'):
     # N.B. channels refers to num_output pages for FCN
     n_cl = net.blobs[layer].channels
     if seg_dir and not os.path.exists(seg_dir):    
     	os.mkdir(seg_dir)
     if conf_dir and not os.path.exists(conf_dir): 
 	os.mkdir(conf_dir)
+    if sm_dir and not os.path.exists(sm_dir): 
+	os.mkdir(sm_dir)
     hist = np.zeros((n_cl, n_cl))
     loss = 0
     for idx in dataset:
@@ -32,22 +34,26 @@ def compute_hist(net, seg_dir, conf_dir, dataset, layer='score', gt='label'):
 	    plt.image.imsave(os.path.join(seg_dir, idx + '.png'), net.blobs[layer].data[0].argmax(0).astype(np.uint8))
 	if conf_dir:
 	    plt.image.imsave(os.path.join(conf_dir, idx + '.png'), net.blobs[layer].data[0].max(axis=0).astype(np.uint8))
+	#if sm_dir:
+	    #plt.image.imsave(os.path.join(sm_dir, idx + '.png'), net.blobs['loss'].data[0].max(axis=0))
         # compute the loss as well
         loss += net.blobs['loss'].data.flat[0]
     return hist, loss / len(dataset)
 
-def seg_tests(solver, save_format, conf_format, dataset, layer='score', gt='label'):
+def seg_tests(solver, save_format, conf_format, sm_format, dataset, layer='score', gt='label'):
     print '>>>', datetime.now(), 'Begin seg tests'
     solver.test_nets[0].share_with(solver.net)
-    do_seg_tests(solver.test_nets[0], solver.iter, save_format, conf_format, dataset, layer, gt)
+    do_seg_tests(solver.test_nets[0], solver.iter, save_format, conf_format, sm_format, dataset, layer, gt)
 
-def do_seg_tests(net, iter, save_format, conf_format, dataset, layer='score', gt='label'):
+def do_seg_tests(net, iter, save_format, conf_format, sm_format, dataset, layer='score', gt='label'):
     n_cl = net.blobs[layer].channels
     if save_format:
         save_format = save_format.format(iter)
     if conf_format:
         conf_format = conf_format.format(iter)
-    hist, loss = compute_hist(net, save_format, conf_format, dataset, layer, gt)
+    if sm_format:
+        sm_format = sm_format.format(iter)
+    hist, loss = compute_hist(net, save_format, conf_format, sm_format, dataset, layer, gt)
     # mean loss
     print '>>>', datetime.now(), 'Iteration', iter, 'loss', loss
     # overall accuracy
