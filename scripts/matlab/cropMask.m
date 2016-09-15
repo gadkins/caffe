@@ -3,23 +3,10 @@ function [croppedRGB,croppedInstMask,croppedPartMask] = cropMask(im, inst_mask, 
 % cropped rgb image corresponding to the instance mask location and 
 % outputSize is 2D vector of nonnegative integers
 
-properties = regionprops('table', inst_mask,'BoundingBox', 'Centroid');
-param = properties.BoundingBox;
-[~,row] =  max(param(:,3));         % 3rd column corresponds to width
-rect = param(row,:);
-if nargin < 4
-    outputSize = rect(3:4);
-end
-
-for ii = 1:numel(rect)
-   rect(ii) = fix(rect(ii)); 
-end
-
+rect = boundingBox(inst_mask);
 croppedRGB = imcrop(im, rect);
-% croppedRGB = imresize(croppedRGB,outputSize);
 croppedInstMask = imcrop(inst_mask,rect);
-% croppedInstMask = imresize(croppedInstMask, outputSize);
 croppedPartMask = imcrop(part_mask,rect);
-% croppedPartMask = imresize(croppedPartMask, outputSize);
+
 end
 

@@ -1,27 +1,28 @@
 % This script creates labelmaps for the PASCAL-Part dataset where each 
 % pixel label corresponds to its respective grid number. Grids are of size
-% mxn. The following are available object classes and ids are:
-%
-% aeroplane     -   1
-% bicycle       -   2
-% bird          -   3
-% boat          -   4
-% bottle        -   5
-% bus           -   6
-% car           -   7
-% cat           -   8
-% chair         -   9
-% cow           -   10
-% diningtable   -   11
-% dog           -   12
-% horse         -   13
-% motorbike     -   14    
-% person        -   15
-% pottedplant   -   16
-% sheep         -   17
-% sofa          -   18
-% train         -   19
-% tvmonitor     -   20
+% mxn. Total grid size is a function of input image size.
+%         n
+%    __ __ __ __
+%   |__|__|__|__|
+%   |__|__|__|__|
+%   |__|__|__|__|
+%   |__|__|__|__|   m    e.g. 8x4
+%   |__|__|__|__|
+%   |__|__|__|__|
+%   |__|__|__|__|
+%   |__|__|__|__|
+
+%       Label Mask            Instance Mask            Label Map
+%   =================     ===================     ===================
+%   | 1 | 2 | 3 | 4 |     |      |-_-|      |     |      |2|3|      |
+%   | 5 | 6 | 7 | 8 |     |   _ _|_ _|_ _   |     |   _ _|6|7|_ _   |
+%   | 9 |10 |11 |12 |     |  / |       | \  |     |  / |10 | 11| \  |
+%   |13 |14 |15 |16 |  +  | / /|       |\ \ |  =  | /13|14 | 15|16\ |
+%   |17 |18 |19 |20 |     |/_/ |_ _ _ _| \_\|     |/_/ |18_|_19| \_\|
+%   |21 |22 |23 |24 |     |    |       |    |     |    |22 | 23|    |
+%   |25 |26 |27 |28 |     |    |       |    |     |    |26 | 27|    |
+%   |29 |30 |31 |32 |     |    |  /\   |    |     |    |30 /\31|    |
+%   =================     ===================     ===================
 
 dataRoot = '/home/cv/hdl/caffe/data';
 pascal = fullfile(dataRoot, '/pascal');
@@ -45,7 +46,6 @@ close all
 % Input
 % N.B. size of Annotations_Part and JPEGImages dirs are not equal.
 % Only a subset (10,103) of JPEGImages are annotated by pascal parts
-
 anno_dir = fullfile(pascal, '/pascal-part/Annotations_Part/');
 anno_files = dir(strcat(anno_dir,'*.mat'));
 img_path = fullfile(pascal, '/VOC/VOC2010/JPEGImages');
@@ -55,13 +55,6 @@ cmap = VOClabelcolormap();
 outputRoot = fullfile(pascal, '/grid');
 outputImDir = fullfile(outputRoot,'images',className,partName);
 outputSegDir = fullfile(outputRoot,'segmentations',className,partName);
-
-% Grid size, mxn
-m_grid = 6;
-n_grid = 4;
-gridMap = cell(m_grid, n_grid);
-blockSize = 50; % dxd
-
 if ~exist(outputImDir, 'dir')
   mkdir(outputImDir);
   fileattrib(outputImDir,'+w','u');
@@ -71,6 +64,12 @@ if ~exist(outputSegDir, 'dir')
   fileattrib(outputSegDir,'+w','u');
 end
 
+% Grid size, mxn
+m_grid = 8;
+n_grid = 4;
+gridMap = cell(m_grid, n_grid);
+
+%% For each image
 for ii = 1:numel(anno_files)
     matname = anno_files(ii).name;
     load(strcat(anno_dir,matname));
@@ -81,49 +80,51 @@ for ii = 1:numel(anno_files)
     if(isempty(objects))
         continue;
     end
+    % For each object instance
     for oo = 1:size(objects,2)
-        [~,inst_mask,part_mask,~] = part_mat2map(objects{oo}, img, pimap, desired_pid);
-        if (sum(part_mask(:)) == 0)
+        [~,inst_mask,parts_mask,parts] = part_mat2map(objects{oo}, img, pimap, desired_pid);
+        if (sum(parts_mask(:)) == 0)
            continue;
         end
-        [croppedRGB,croppedInstMask,~] = cropMask(img, inst_mask, part_mask);
-        nRows = m_grid*blockSize;
-        nCols = n_grid*blockSize;
-        resizedRGB = imresize(croppedRGB, [nRows, nCols], 'nearest');
-        resizedInstMask = imresize(croppedInstMask, [nRows, nCols], 'nearest');
-        blockNum = 0;
-        for i=1:m_grid
-            for j=1:n_grid
-                blockNum = blockNum + 1;
-                currentMask = resizedInstMask(1+(i-1)*blockSize:i*blockSize,1+(j-1)*blockSize:j*blockSize,:);
-                currentMask(currentMask ~= 0) = blockNum;
-                gridMap{i,j} = currentMask;
+        [croppedRGB,~,croppedPartsMask] = cropMask(img, inst_mask, parts_mask);
+        labelMap = zeros(size(croppedPartsMask,1), size(croppedPartsMask,2), 'uint8');
+        % For each object part
+        for pp = 1:size(parts,1)
+            binaryIm = uint8(croppedPartsMask == pimap{classID}(parts{pp}));
+%             binary(binary == 1) = pimap{classID}(parts{pp});
+            if (sum(binaryIm(:)) == 0)
+                continue;
             end
+            partBBox = boundingBox(binaryIm);
+            % mxn grid, blocks 2, 3, 6 & 7 (ie rows 1 & 2, cols 2 & 3)
+            if (strcmp(parts{pp}, 'head'))
+                labelMask = maskGrid(partBBox, m_grid, n_grid, 1:2, 2:3);
+            % mxn grid, blocks 10, 11, 14, 15, 18 & 19 (i.e. rows 3-5, cols 2 & 3)
+            elseif (strcmp(parts{pp}, 'torso'))
+                labelMask = maskGrid(partBBox, m_grid, n_grid, 3:5, 2:3);
+            elseif (~isempty(regexp(parts{pp}, 'r[ul]arm', 'once')))
+                labelMask = maskGrid(partBBox, m_grid, n_grid, 3:5, 1);
+            elseif (~isempty(regexp(parts{pp}, 'l[ul]arm', 'once')))
+                labelMask = maskGrid(partBBox, m_grid, n_grid, 3:5, 4);
+            elseif (~isempty(regexp(parts{pp}, 'r[ul]leg', 'once')))
+                labelMask = maskGrid(partBBox, m_grid, n_grid, 6:8, 2);
+            elseif (~isempty(regexp(parts{pp}, 'l[ul]leg', 'once')))
+                labelMask = maskGrid(partBBox, m_grid, n_grid, 6:8, 3);
+            else
+                % Do nothing; only considering 7 body parts
+            end
+            [r,c] = convertBoundingBox(partBBox, labelMap);
+            labelMap(r, c) = labelMap(r,c) + binaryIm(r, c).*labelMask...
+                                .*uint8(~labelMap(r,c));
         end
-%         labelmap = zeros(blockSize, blockSize, 'uint8');
-%         for i=1:m_grid
-%             for j=1:n_grid
-%                 labelmap = cat(2, labelmap, gridMap{i,j});
-%             end
-%         end
-
-        labelmap = [gridMap{1,1}, gridMap{1,2}, gridMap{1,3}, gridMap{1,4}; ...
-            gridMap{2,1}, gridMap{2,2}, gridMap{2,3}, gridMap{2,4};...
-            gridMap{3,1}, gridMap{3,2}, gridMap{3,3}, gridMap{3,4};...
-            gridMap{4,1}, gridMap{4,2}, gridMap{4,3}, gridMap{4,4};...
-            gridMap{5,1}, gridMap{5,2}, gridMap{5,3}, gridMap{5,4};...
-            gridMap{6,1}, gridMap{6,2}, gridMap{6,3}, gridMap{6,4}];
-        
-        % Save images and labelmaps (segmentations)
+        % Save images
         segfile = fullfile(outputSegDir,imname);
         [~,basename,~] = fileparts(segfile);
-        % Segmentation image MUST BE SAVED AS PNG or else imwrite will
-        % corrupt with spurious values if saved as jpeg
         multiInstanceNameSeg = strcat(basename,'_',num2str(oo),'.png');
-        multiInstanceNameIm = strcat(basename,'_',num2str(oo),'.jpg');
+        multiInstanceNameRGB = strcat(basename,'_',num2str(oo),'.jpg');
         segfile = fullfile(outputSegDir,multiInstanceNameSeg);
-        imfile = fullfile(outputImDir,multiInstanceNameIm);
-        imwrite(resizedRGB, imfile);
-        imwrite(labelmap, segfile);
+        rgbfile = fullfile(outputImDir,multiInstanceNameRGB);
+        imwrite(labelMap, cmap, segfile);
+        %imwrite(croppedRGB, rgbfile);
     end
 end
