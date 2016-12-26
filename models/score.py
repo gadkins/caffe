@@ -5,7 +5,9 @@ import os
 import sys
 from datetime import datetime
 from PIL import Image
-import matplotlib as plt
+import matplotlib.pyplot as plt
+import VOClabelcolormap as vlc
+import matplotlib.cm as cm
 
 def fast_hist(a, b, n):
     k = (a >= 0) & (a < n)
@@ -22,20 +24,23 @@ def compute_hist(net, seg_dir, conf_dir, sm_dir, dataset, layer='score', gt='lab
 	os.mkdir(sm_dir)
     hist = np.zeros((n_cl, n_cl))
     loss = 0
+    voc_cmap = vlc.colormap()
     for idx in dataset:
         net.forward()
-        hist += fast_hist(net.blobs[gt].data[0, 0].flatten(),
-                                net.blobs[layer].data[0].argmax(0).flatten(),
+        hist += fast_hist(net.blobs[gt].data[0, 0].flatten(), # shape is (HxW)
+                                net.blobs[layer].data[0].argmax(0).flatten(), # shape is (CxHxW)
                                 n_cl)
 
         if seg_dir:
-            #im = Image.fromarray(net.blobs[layer].data[0].argmax(0).astype(np.uint8), mode='P')
-            #im.save(os.path.join(seg_dir, idx + '.png'))
-	    plt.image.imsave(os.path.join(seg_dir, idx + '.png'), net.blobs[layer].data[0].argmax(0).astype(np.uint8))
+            im = Image.fromarray(net.blobs[layer].data[0].argmax(0).astype(np.uint8), mode='P')
+            im.save(os.path.join(seg_dir, idx + '.png'))
+	    #plt.imsave(os.path.join(seg_dir, idx + '.png'), \
+		#net.blobs[layer].data[0].argmax(0).astype(np.uint8), cmap=voc_cmap)
 	if conf_dir:
-	    plt.image.imsave(os.path.join(conf_dir, idx + '.png'), net.blobs[layer].data[0].max(axis=0).astype(np.uint8))
+	    plt.imsave(os.path.join(conf_dir, idx + '.png'), \
+		net.blobs[layer].data[0].max(axis=0).astype(np.uint8))
 	#if sm_dir:
-	    #plt.image.imsave(os.path.join(sm_dir, idx + '.png'), net.blobs['loss'].data[0].max(axis=0))
+	    #plt.imsave(os.path.join(sm_dir, idx + '.png'), net.blobs['loss'].data[0].max(axis=0))
         # compute the loss as well
         loss += net.blobs['loss'].data.flat[0]
     return hist, loss / len(dataset)
@@ -56,16 +61,31 @@ def do_seg_tests(net, iter, save_format, conf_format, sm_format, dataset, layer=
     hist, loss = compute_hist(net, save_format, conf_format, sm_format, dataset, layer, gt)
     # mean loss
     print '>>>', datetime.now(), 'Iteration', iter, 'loss', loss
+    # true positives
+    tp = np.diag(hist)
+    # false negatives
+    fn = hist.sum(0) - tp
+    # false positives
+    fp = hist.sum(1) - tp
     # overall accuracy
-    acc = np.diag(hist).sum() / hist.sum()
+    acc = tp.sum() / hist.sum()
     print '>>>', datetime.now(), 'Iteration', iter, 'overall accuracy', acc
     # per-class accuracy
-    acc = np.diag(hist) / hist.sum(1)
+    acc = tp / hist.sum(1)
     print '>>>', datetime.now(), 'Iteration', iter, 'mean accuracy', np.nanmean(acc)
     # per-class IU
-    iu = np.diag(hist) / (hist.sum(1) + hist.sum(0) - np.diag(hist))
+    iu = tp / (tp + fp + fn)
     print '>>>', datetime.now(), 'Iteration', iter, 'mean IU', np.nanmean(iu)
     freq = hist.sum(1) / hist.sum()
     print '>>>', datetime.now(), 'Iteration', iter, 'fwavacc', \
             (freq[freq > 0] * iu[freq > 0]).sum()
+    # precision
+    precision = tp / (tp + fp)
+    print '>>>', datetime.now(), 'Iteration', iter, 'average precision', np.nanmean(precision)
+    # recall
+    recall = tp / (tp + fn)
+    print '>>>', datetime.now(), 'Iteration', iter, 'average recall', np.nanmean(recall)
+    # false negative rate
+    fnr = 1 - recall
+    print '>>>', datetime.now(), 'Iteration', iter, 'average false negative rate', np.nanmean(fnr)
     return hist
